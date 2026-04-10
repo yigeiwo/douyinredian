@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>热点浏览器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        
+        .platform-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        
+        .platform-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .platform-btn:hover {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .platform-btn.active {
+            background-color: #2196f3;
+            color: white;
+            border-color: #2196f3;
+        }
+        
+        .news-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        .news-item {
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .news-item:last-child {
+            border-bottom: none;
+        }
+        
+        .news-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .news-title a {
+            color: #2196f3;
+            text-decoration: none;
+        }
+        
+        .news-title a:hover {
+            text-decoration: underline;
+        }
+        
+        .news-meta {
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .refresh-info {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .platform-selector {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .platform-btn {
+                width: 100%;
+                max-width: 200px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>热点浏览器</h1>
+        
+        <div class="platform-selector" id="platformSelector">
+            <!-- 平台按钮将通过 JavaScript 动态生成 -->
+        </div>
+        
+        <div class="news-container" id="newsContainer">
+            <div class="loading">加载中...</div>
+        </div>
+        
+        <div class="refresh-info" id="refreshInfo">
+            上次刷新: 从未
+        </div>
+    </div>
+    
+    <script>
+        // 支持的平台列表
+        const platforms = [
+            { code: 'douyin', name: '抖音' }
+        ];
+        
+        let currentPlatform = 'douyin';
+        let refreshInterval;
+        
+        // 初始化平台选择器
+        function initPlatformSelector() {
+            const selector = document.getElementById('platformSelector');
+            platforms.forEach(platform => {
+                const button = document.createElement('button');
+                button.className = 'platform-btn';
+                button.textContent = platform.name;
+                button.dataset.platform = platform.code;
+                
+                if (platform.code === currentPlatform) {
+                    button.classList.add('active');
+                }
+                
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.platform-btn').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    currentPlatform = platform.code;
+                    fetchNews();
+                });
+                
+                selector.appendChild(button);
+            });
+        }
+        
+        // 获取新闻数据
+        async function fetchNews() {
+            const container = document.getElementById('newsContainer');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const response = await fetch(`/api/v1/dailynews/?platform=${currentPlatform}`);
+                const data = await response.json();
+                
+                if (data.status === '200' && data.data) {
+                    renderNews(data.data);
+                    updateRefreshInfo();
+                } else {
+                    container.innerHTML = '<div class="loading">获取数据失败</div>';
+                }
+            } catch (error) {
+                console.error('Error fetching news:', error);
+                container.innerHTML = '<div class="loading">网络错误，请稍后重试</div>';
+            }
+        }
+        
+        // 渲染新闻列表
+        function renderNews(newsList) {
+            const container = document.getElementById('newsContainer');
+            container.innerHTML = '';
+            
+            newsList.forEach((news, index) => {
+                const newsItem = document.createElement('div');
+                newsItem.className = 'news-item';
+                
+                newsItem.innerHTML = `
+                    <div class="news-title">
+                        <a href="${news.url}" target="_blank">${index + 1}. ${news.title}</a>
+                    </div>
+                    <div class="news-meta">
+                        <span>来源: ${news.source}</span>
+                        <span>抓取时间: ${news.publish_time || ''}</span>
+                    </div>
+                `;
+                
+                container.appendChild(newsItem);
+            });
+        }
+        
+        // 更新刷新信息
+        function updateRefreshInfo() {
+            const now = new Date();
+            const timeString = now.toLocaleString('zh-CN');
+            document.getElementById('refreshInfo').textContent = `上次刷新: ${timeString}`;
+        }
+        
+        // 初始化应用
+        function initApp() {
+            initPlatformSelector();
+            fetchNews();
+            
+            // 设置自动刷新，每30秒刷新一次
+            refreshInterval = setInterval(() => {
+                fetchNews();
+            }, 30000);
+        }
+        
+        // 页面加载完成后初始化应用
+        window.onload = initApp;
+    </script>
+</body>
+</html>
